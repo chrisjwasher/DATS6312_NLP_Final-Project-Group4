@@ -2,7 +2,7 @@ NLP Project Proposal:
 
 Newspapers and online publications are often politically biased and reflect the political leaning of their publisher. Changes to the way the public consumes news media have exasperated these biases and more than ever people are consuming news from non-traditional sources. American politics have become more polarizing as well and many draw on sources which lean to their preferred political ideology.
 
-Given the election year and the ramping up of politically biased news articles, our group will address the question: can we develop a natural language processing pipeline to detect political bias in news articles and summarize the articles using unbiased language to mitigate biased media consumption?
+In light of the ongoing election cycle and the ramping up of politically slanted news content,our group seeks to provide news readers with tools that promote balanced news consuption. Our primary objective is to develop a natural language processing pipeline to detect political bias in news articles. Our far-reaching objective is to design techniques for debiasing the identified partiality and providing summarization of news articles based on unbiased language. 
 
 To address this question, we will use the Newspaper Bias Dataset (NewB) created by Jerry Wei and an Article-Bias-Prediction dataset created from allsides.com by Ramy Baly. The NewB dataset contains 200,000+ Sentences about Donald Trump labeled by news source and political bias. The Article-Bias-Prediction dataset contains a total of 37,554 articles labelled by political bias.
 
