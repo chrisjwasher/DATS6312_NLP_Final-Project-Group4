@@ -23,3 +23,5 @@ https://github.com/JerryWeiAI/NewB
 https://github.com/ramybaly/Article-Bias-Prediction/tree/main
 https://arxiv.org/pdf/2006.03051v2.pdf
 https://arxiv.org/pdf/2010.05338.pdf
+
+https://newsapi.org/
