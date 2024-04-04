@@ -8,9 +8,11 @@ import json
 
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import cohen_kappa_score
 from sklearn.metrics import accuracy_score, f1_score
+
+from sklearn.linear_model import LogisticRegression
+from sklearn.naive_bayes import MultinomialNB
 
 
 import nltk
@@ -101,17 +103,26 @@ def split(df):
 
 X_train, X_test, y_train, y_test = split(df)
 #%%
-
-def model_traning(X_train, y_train):
+# ******************
+#   Model building
+# ******************
+def model_traning_logistic(X_train, y_train):
     vectorizer = TfidfVectorizer(tokenizer=casual_tokenize)
     X_train = vectorizer.fit_transform(X_train)
     model = LogisticRegression(max_iter=1000)
     model.fit(X_train, y_train)
     return model, vectorizer
 
+def model_traning_naive(X_train, y_train):
+    vectorizer_naive = TfidfVectorizer(tokenizer=casual_tokenize)
+    X_train = vectorizer_naive.fit_transform(X_train)
+    model_naive = MultinomialNB()
+    model_naive.fit(X_train, y_train)
+    return model_naive, vectorizer_naive
 
-model, vectorizer = model_traning(X_train['content_clean'], y_train)
-#%%
+
+model, vectorizer = model_traning_logistic(X_train['content_clean'], y_train)
+model_naive, vectorizer_naive = model_traning_naive(X_train['content_clean'], y_train)
 
 def model_testing(model, vectorizer, X_test):
     X_test = vectorizer.transform(X_test)
@@ -120,14 +131,21 @@ def model_testing(model, vectorizer, X_test):
 
 
 predictions = model_testing(model, vectorizer, X_test['content_clean'])
-#%%
+predictions_naive = model_testing(model_naive, vectorizer_naive, X_test['content_clean'])
 
+#%%
+# ******************
+#   Metrics results
+# ******************
 def metrics(predictions, y_test):
     kappa = cohen_kappa_score(y_test, predictions)
     return kappa
 
 
+print('*'*25)
+print("Logistic Regression")
 kappa = metrics(predictions, y_test)
+print("Kappa score: ", kappa)
 
 # Accuracy of the results
 accuracy = accuracy_score(y_test, predictions)
@@ -144,3 +162,25 @@ print("F1-score (micro):", f1_micro)
 # F1-score with 'macro' averaging
 f1_macro = f1_score(y_test, predictions, average='macro')
 print("F1-score (macro):", f1_macro)
+
+print()
+print('*'*25)
+print("Naive Regression")
+kappa_naive = metrics(predictions_naive, y_test)
+print("Kappa score: ", kappa_naive)
+
+# Accuracy of the results
+accuracy_naive = accuracy_score(y_test, predictions_naive)
+print("Accuracy:", accuracy_naive)
+
+# F1-score with 'weighted' averaging
+f1_weighted_naive = f1_score(y_test, predictions_naive, average='weighted')
+print("F1-score (weighted):", f1_weighted_naive)
+
+# F1-score with 'micro' averaging
+f1_micro_naive = f1_score(y_test, predictions_naive, average='micro')
+print("F1-score (micro):", f1_micro_naive)
+
+# F1-score with 'macro' averaging
+f1_macro_naive = f1_score(y_test, predictions_naive, average='macro')
+print("F1-score (macro):", f1_macro_naive)
