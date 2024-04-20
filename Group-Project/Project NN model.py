@@ -1,3 +1,6 @@
+### this file maybe deleted completely,
+### I am working on another file that's using pytorch for LSTM, we won't keep the tensorflow
+
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
