@@ -1,9 +1,8 @@
-import time
 import os
-import csv
 import numpy as np
 import pandas as pd
 import json
+
 
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -13,14 +12,16 @@ from sklearn.metrics import accuracy_score, f1_score
 from sklearn.linear_model import LogisticRegression
 from sklearn.naive_bayes import MultinomialNB
 
+
 import nltk
 from nltk.tokenize.casual import casual_tokenize
 from nltk.stem import WordNetLemmatizer
 
+
 import re
 
 
-# %%
+#%%
 
 # ******************
 #     Read data
@@ -58,17 +59,16 @@ def read_json_folder(folder_path):
 
     return df, json_data_list
 
+df, json_data_list = read_json_folder('Group Project/data/jsons')
 
-df, json_data_list = read_json_folder('data/jsons')
 
-# %%
+#%%
 # ******************
 #   Preprocessing
 # ******************
 
 nltk.download('stopwords')
 stop_words = nltk.corpus.stopwords.words('english')
-
 
 def preprocess(text):
     # Convert text to lowercase
@@ -86,9 +86,7 @@ def preprocess(text):
 
 
 df['content_clean'] = df['content'].apply(preprocess)
-
-
-# %%
+#%%
 
 def split(df):
     X = df.drop(columns=['topic', 'source', 'url',
@@ -101,10 +99,12 @@ def split(df):
     return X_train, X_test, y_train, y_test
 
 
+df['content'] = [entry.lower() for entry in df['content']]
+df['content'] = df['content'].apply(lambda x: re.sub(r"[^\w\s]", ' ', x).lower())
+
+
 X_train, X_test, y_train, y_test = split(df)
-
-
-# %%
+#%%
 # ******************
 #   Model building
 # ******************
@@ -114,7 +114,6 @@ def model_traning_logistic(X_train, y_train):
     model = LogisticRegression(max_iter=1000)
     model.fit(X_train, y_train)
     return model, vectorizer
-
 
 def model_traning_naive(X_train, y_train):
     vectorizer_naive = TfidfVectorizer(tokenizer=casual_tokenize)
@@ -127,7 +126,6 @@ def model_traning_naive(X_train, y_train):
 model, vectorizer = model_traning_logistic(X_train['content_clean'], y_train)
 model_naive, vectorizer_naive = model_traning_naive(X_train['content_clean'], y_train)
 
-
 def model_testing(model, vectorizer, X_test):
     X_test = vectorizer.transform(X_test)
     predictions = model.predict(X_test)
@@ -137,8 +135,7 @@ def model_testing(model, vectorizer, X_test):
 predictions = model_testing(model, vectorizer, X_test['content_clean'])
 predictions_naive = model_testing(model_naive, vectorizer_naive, X_test['content_clean'])
 
-
-# %%
+#%%
 # ******************
 #   Metrics results
 # ******************
@@ -147,7 +144,7 @@ def metrics(predictions, y_test):
     return kappa
 
 
-print('*' * 25)
+print('*'*25)
 print("Logistic Regression")
 kappa = metrics(predictions, y_test)
 print("Kappa score: ", kappa)
@@ -169,7 +166,7 @@ f1_macro = f1_score(y_test, predictions, average='macro')
 print("F1-score (macro):", f1_macro)
 
 print()
-print('*' * 25)
+print('*'*25)
 print("Naive Regression")
 kappa_naive = metrics(predictions_naive, y_test)
 print("Kappa score: ", kappa_naive)
@@ -189,3 +186,4 @@ print("F1-score (micro):", f1_micro_naive)
 # F1-score with 'macro' averaging
 f1_macro_naive = f1_score(y_test, predictions_naive, average='macro')
 print("F1-score (macro):", f1_macro_naive)
+
