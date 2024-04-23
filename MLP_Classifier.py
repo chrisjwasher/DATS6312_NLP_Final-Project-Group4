@@ -1,31 +1,151 @@
 
+import json
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+
+from gensim.parsing.preprocessing import remove_stopwords
+from gensim.utils import simple_preprocess
+from gensim import corpora
+
+
 import torch
 import torch.nn as nn
+from torch.utils.data import DataLoader
+from torch.optim import AdamW
+from torchtext.data.utils import get_tokenizer
+from torchtext.vocab import build_vocab_from_iterator
+
+from datasets import Dataset, load_dataset
+import evaluate
+
 import random
 import numpy
+import nltk
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+import os
+import gensim
+from sklearn.model_selection import train_test_split
+nltk.download('punkt')
+nltk.download('stopwords')
+#from EDA_script import read_json_folder
+
 
 # -------------------------------------------------------------------------------------
 
-corpus = []
-def remove_stop_words(corpus):
-    stop_words = ['is', 'a', 'will', 'be']
-    results = []
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print("Device available for running: ")
+print(device)
 
-    for text in corpus:
-        tmp = text.split()
-        for stop in stop_words:
-            if stop in tmp:
-                tmp.remove(stop)
-        results.append(' '.join(tmp))
+def read_json_folder(folder_path):
+    """
+    Read JSON files from a folder and return a list of dictionaries.
+    Args:
+        folder_path (str): Path to the folder containing JSON files.
+    Returns:
+        list: A list of dictionaries containing data from each JSON file.
+    """
+    json_data_list = []
 
-    return results
+    # Check if the folder path exists
+    if not os.path.exists(folder_path):
+        print(f"Folder '{folder_path}' does not exist.")
+        return json_data_list
+
+    # Iterate over files in the folder
+    for filename in os.listdir(folder_path):
+        file_path = os.path.join(folder_path, filename)
+        # Check if the file is a JSON file
+        if filename.endswith('.json'):
+            with open(file_path, 'r') as f:
+                # Load JSON data from the file
+                try:
+                    json_data = json.load(f)
+                    json_data_list.append(json_data)
+                except json.JSONDecodeError:
+                    print(f"Error reading JSON from file: {file_path}")
+                    continue
+
+    df = pd.DataFrame.from_dict(json_data_list)
+
+    return df, json_data_list
 
 
-corpus = remove_stop_words(corpus)
+df, json_data_list = read_json_folder('data/jsons')
+df['full_content'] = df['title'] + ' ' + df['content']
+df = df.drop(['topic', 'source', 'url', 'date', 'authors','title', 'content',
+              'content_original', 'source_url', 'bias_text','ID'], axis=1)
 
+
+def process_text(text):
+    no_stop = remove_stopwords(text)
+    processed_text = simple_preprocess(no_stop)
+    return processed_text
+
+df['preprocessed_text'] = df['full_content'].apply(process_text)
+
+X_train,X_test,y_train,y_test = train_test_split(df['preprocessed_text'],
+                                                 df['bias'],
+                                                 test_size=.2,
+                                                 stratify=df['bias'])
+
+print(X_train.head())
+
+review_dict = corpora.Dictionary([['pad']])
+review_dict.add_documents(X_train)
+
+
+class MLP(nn.Module):
+    def __init__(self):
+        super(MLP, self).__init__()
+        self.layer1 = nn.Linear(100, 50)  # Input size is 100, which is the size of Word2Vec vectors
+        self.layer2 = nn.Linear(50, 10)
+        self.output = nn.Linear(10, 1)
+
+    def forward(self, x):
+        x = torch.relu(self.layer1(x))
+        x = torch.relu(self.layer2(x))
+        x = torch.sigmoid(self.output(x))
+        return x
+
+
+LR = 1e-2
+N_EPOCHS =100
+EMBEDDING_DIM = 2
+
+
+model = MLP()
+optimizer = torch.optim.Adam(model.parameters(), lr=LR)
+criterion = nn.MSELoss()
+
+for epoch in range(N_EPOCHS):  # runs for 100 epochs
+    model.train()
+    optimizer.zero_grad()
+
+    outputs = model(X_train).reshape(-1)
+    loss = criterion(outputs, y_train)
+
+    loss.backward()
+    optimizer.step()
+
+    model.eval()
+    with torch.no_grad():
+        predictions = model(X_test).reshape(-1)
+        val_loss = criterion(predictions, y_test)
+
+    print(f'Epoch [{epoch + 1}/{N_EPOCHS}], Loss: {loss.item():.4f}, Val Loss: {val_loss.item():.4f}')
+
+
+model.eval()
+with torch.no_grad():
+    y_pred = model(X_test).reshape(-1)
+    y_pred_classes = (y_pred > 0.5).float()
+    accuracy = (y_pred_classes == y_test).float().mean()
+    print(f'Accuracy: {accuracy.item():.4f}')
+
+
+'''
 words = []
 for text in corpus:
     for word in text.split(' '):
@@ -113,3 +233,5 @@ for epoch in range(N_EPOCHS):
 
 vectors = model.linear1._parameters['weight'].cpu().detach().numpy().transpose()
 print(vectors)
+
+'''
