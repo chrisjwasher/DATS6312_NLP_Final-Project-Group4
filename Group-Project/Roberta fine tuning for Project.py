@@ -1,3 +1,6 @@
+### this file is flawed in that I had tokenized the entire dataset and then only removed the unnecessary columns, 
+### potentially adding processing power
+######## we may discard this and instead use the file called Roberta pre-trained model.py
 from datasets import load_dataset
 from transformers import AutoTokenizer, DataCollatorWithPadding
 from torch.utils.data import DataLoader
