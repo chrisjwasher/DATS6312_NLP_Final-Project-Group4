@@ -7,14 +7,16 @@ import matplotlib.pyplot as plt
 from gensim.parsing.preprocessing import remove_stopwords
 from gensim.utils import simple_preprocess
 from gensim import corpora
+import gensim.downloader as api
 
 
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader
 from torch.optim import AdamW
 from torchtext.data.utils import get_tokenizer
 from torchtext.vocab import build_vocab_from_iterator
+from torch.utils.data import TensorDataset, DataLoader, RandomSampler,SequentialSampler
+
 
 from datasets import Dataset, load_dataset
 import evaluate
@@ -78,23 +80,101 @@ df = df.drop(['topic', 'source', 'url', 'date', 'authors','title', 'content',
               'content_original', 'source_url', 'bias_text','ID'], axis=1)
 
 
-def process_text(text):
+def token_text(text):
     no_stop = remove_stopwords(text)
     processed_text = simple_preprocess(no_stop)
     return processed_text
 
-df['preprocessed_text'] = df['full_content'].apply(process_text)
+def build_vocabulary(token_text):
+    '''
+    Build vocabulary from list of tokenized texts and find maximum document length.
+
+    Args:
+        preprocessed_text: List[str]
+
+    Returns:
+        word2idx (Dict): Vocabulary built from the corpus
+        max_len (int): Maximum doc length
+
+    '''
+
+    max_len = 0
+    word2idx = {}
+
+    # Add <pad> and <unk> tokens to the vocabulary
+    word2idx['<pad>'] = 0
+    word2idx['<unk>'] = 1
+
+    idx = 2
+    for doc in token_text:
+        for token in doc:
+            if token not in word2idx:
+                word2idx[token] = idx
+                idx += 1
+
+        max_len = max(max_len, len(doc))
+
+    return word2idx, max_len
+
+
+def encode_text(tokenized_text, word2idx, max_len):
+    '''
+    Encode the tokens to their index in the vocabulary.
+
+    Args:
+        tokenized_text: List[List[Str]]
+        word2idx: Dict
+        max_len: Int
+
+    Returns:
+        input_ids (np.array): Array of token indexes in the vocabulary with
+        shape (N, max_len). It will the input of our CNN model.
+    '''
+    input_ids = []
+    for tokenized_doc in tokenized_text:
+        tokenized_doc += ['<pad>'] * (max_len - len(tokenized_doc))
+
+        input_id = [word2idx.get(token) for token in tokenized_doc]
+        input_ids.append(input_id)
+
+    return np.array(input_ids)
+
+def load_pretrained_vectors():
+    model = api.load("word2vec-google-news-300"
+
+df['tokenized_text'] = df['full_content'].apply(token_text)
 
 X_train,X_test,y_train,y_test = train_test_split(df['preprocessed_text'],
                                                  df['bias'],
                                                  test_size=.2,
                                                  stratify=df['bias'])
 
-print(X_train.head())
+
 
 review_dict = corpora.Dictionary([['pad']])
 review_dict.add_documents(X_train)
 
+
+def data_loader(train_inputs, test_inputs, train_labels, test_labels, batch_size=50):
+    '''
+    Convert training and validation sets into torch.Tensors and load them to a DataLoader iterator.
+    '''
+
+    #convert to torch.Tensor
+    train_inputs, test_inputs, train_labels, test_labels = (tuple(torch.tensor(data) for data in
+               [train_inputs, test_inputs, train_labels, test_labels]))
+
+    #Dataloader for train
+    train_data = TensorDataset(train_inputs, train_labels)
+    train_sampler = RandomSampler(train_data)
+    train_dataloader = DataLoader(train_data, sampler=train_sampler, batch_size=batch_size)
+
+    #Dataloader for test
+    test_data = TensorDataset(test_inputs, test_labels)
+    test_sampler = SequentialSampler(test_data)
+    test_dataloader = DataLoader(test_data, sampler=test_sampler, batch_size=batch_size)
+
+    return train_dataloader, test_dataloader
 
 class MLP(nn.Module):
     def __init__(self):
