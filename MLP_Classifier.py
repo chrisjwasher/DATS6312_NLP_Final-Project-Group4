@@ -5,36 +5,28 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from gensim.parsing.preprocessing import remove_stopwords
-from gensim.utils import simple_preprocess
-from gensim import corpora
 import gensim.downloader as api
-
 
 import torch
 import torch.nn as nn
-from torch.optim import AdamW
-from torchtext.data.utils import get_tokenizer
-from torchtext.vocab import build_vocab_from_iterator
+import torch.optim as optim
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler,SequentialSampler
 
+from torchtext.data.utils import get_tokenizer
 
 from datasets import Dataset, load_dataset
-import evaluate
 
-import random
-import numpy
 import nltk
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
 import os
-import gensim
 from sklearn.model_selection import train_test_split
 nltk.download('punkt')
 nltk.download('stopwords')
-#from EDA_script import read_json_folder
 
-
-# -------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------
+#
+# Device set up and import json data
+#
+#------------------------------------------------------------------------------------
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("Device available for running: ")
@@ -78,240 +70,163 @@ df, json_data_list = read_json_folder('data/jsons')
 df['full_content'] = df['title'] + ' ' + df['content']
 df = df.drop(['topic', 'source', 'url', 'date', 'authors','title', 'content',
               'content_original', 'source_url', 'bias_text','ID'], axis=1)
+#------------------------------------------------------------------------------------
+#
+# Text preprocessing and data loading
+#
+#------------------------------------------------------------------------------------
+class TextDataset(Dataset):
+    def __init__(self, df, text_col, label_col, max_doc_length, tokenizer, word2vec_model):
+        self.df = df
+        self.text_col = text_col
+        self.label_col = label_col
+        self.max_doc_length = max_doc_length
+        self.tokenizer = tokenizer
+        self.word2vec_model = word2vec_model
 
+    def __len__(self):
+        return len(self.df)
 
-def token_text(text):
+    def __getitem__(self, index):
+        text = self.df[self.text_col].iloc[index]
+        label = self.df[self.label_col].iloc[index]
+
+        tokens = self.tokenizer(text)
+
+        embeddings = []
+        for token in tokens:
+            if token in self.word2vec_model.key_to_index:
+                embedding = self.word2vec_model[token]
+                embedding = torch.from_numpy(embedding)
+            else:
+                embedding = torch.zeros(self.word2vec_model.vector_size)
+            embeddings.append(embedding)
+
+        # Pad or truncate the embeddings to the desired length
+        embeddings = embeddings[:self.max_doc_length]
+        embeddings = embeddings + [torch.zeros(self.word2vec_model.vector_size)] * (
+                    self.max_doc_length - len(embeddings))
+
+        # Stack the embeddings into a tensor
+        text_tensor = torch.stack(embeddings)
+
+        # Convert label to tensor
+        label_tensor = torch.tensor(label, dtype=torch.long)
+
+        return text_tensor, label_tensor
+
+def tokenizer(text):
     no_stop = remove_stopwords(text)
-    processed_text = simple_preprocess(no_stop)
-    return processed_text
+    tokenizer = get_tokenizer("basic_english")
+    tokens = tokenizer(no_stop)
+    return tokens
 
-def build_vocabulary(token_text):
-    '''
-    Build vocabulary from list of tokenized texts and find maximum document length.
+word2vec_model = api.load("word2vec-google-news-300")
 
-    Args:
-        preprocessed_text: List[str]
+text_column = 'full_content'
+label_column = 'bias'
+max_doc_length = 300
+batch_size = 32
 
-    Returns:
-        word2idx (Dict): Vocabulary built from the corpus
-        max_len (int): Maximum doc length
+dataset = TextDataset(df, text_column, label_column, max_doc_length, tokenizer, word2vec_model)
+train_data, test_data = train_test_split(dataset, test_size=0.2, random_state=42)
 
-    '''
+train_dataloader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
+test_dataloader = DataLoader(test_data, batch_size=batch_size, shuffle=True)
 
-    max_len = 0
-    word2idx = {}
-
-    # Add <pad> and <unk> tokens to the vocabulary
-    word2idx['<pad>'] = 0
-    word2idx['<unk>'] = 1
-
-    idx = 2
-    for doc in token_text:
-        for token in doc:
-            if token not in word2idx:
-                word2idx[token] = idx
-                idx += 1
-
-        max_len = max(max_len, len(doc))
-
-    return word2idx, max_len
-
-
-def encode_text(tokenized_text, word2idx, max_len):
-    '''
-    Encode the tokens to their index in the vocabulary.
-
-    Args:
-        tokenized_text: List[List[Str]]
-        word2idx: Dict
-        max_len: Int
-
-    Returns:
-        input_ids (np.array): Array of token indexes in the vocabulary with
-        shape (N, max_len). It will the input of our CNN model.
-    '''
-    input_ids = []
-    for tokenized_doc in tokenized_text:
-        tokenized_doc += ['<pad>'] * (max_len - len(tokenized_doc))
-
-        input_id = [word2idx.get(token) for token in tokenized_doc]
-        input_ids.append(input_id)
-
-    return np.array(input_ids)
-
-def load_pretrained_vectors():
-    model = api.load("word2vec-google-news-300"
-
-df['tokenized_text'] = df['full_content'].apply(token_text)
-
-X_train,X_test,y_train,y_test = train_test_split(df['preprocessed_text'],
-                                                 df['bias'],
-                                                 test_size=.2,
-                                                 stratify=df['bias'])
-
-
-
-review_dict = corpora.Dictionary([['pad']])
-review_dict.add_documents(X_train)
-
-
-def data_loader(train_inputs, test_inputs, train_labels, test_labels, batch_size=50):
-    '''
-    Convert training and validation sets into torch.Tensors and load them to a DataLoader iterator.
-    '''
-
-    #convert to torch.Tensor
-    train_inputs, test_inputs, train_labels, test_labels = (tuple(torch.tensor(data) for data in
-               [train_inputs, test_inputs, train_labels, test_labels]))
-
-    #Dataloader for train
-    train_data = TensorDataset(train_inputs, train_labels)
-    train_sampler = RandomSampler(train_data)
-    train_dataloader = DataLoader(train_data, sampler=train_sampler, batch_size=batch_size)
-
-    #Dataloader for test
-    test_data = TensorDataset(test_inputs, test_labels)
-    test_sampler = SequentialSampler(test_data)
-    test_dataloader = DataLoader(test_data, sampler=test_sampler, batch_size=batch_size)
-
-    return train_dataloader, test_dataloader
+#------------------------------------------------------------------------------------
+#
+# Build MLP model
+#
+#------------------------------------------------------------------------------------
 
 class MLP(nn.Module):
-    def __init__(self):
+    def __init__(self, embedding_dim, hidden_dim, num_classes):
         super(MLP, self).__init__()
-        self.layer1 = nn.Linear(100, 50)  # Input size is 100, which is the size of Word2Vec vectors
-        self.layer2 = nn.Linear(50, 10)
-        self.output = nn.Linear(10, 1)
+        self.embedding_dim = embedding_dim
+        self.hidden_dim = hidden_dim
+        self.num_classes = num_classes
+
+        self.layer1 = nn.Linear(embedding_dim, hidden_dim)
+        self.layer2 = nn.Linear(hidden_dim, hidden_dim)
+        self.output = nn.Linear(hidden_dim, num_classes)
 
     def forward(self, x):
+        # Average the word embeddings to get a document representation
+        x = torch.mean(x, dim=1)
+
         x = torch.relu(self.layer1(x))
         x = torch.relu(self.layer2(x))
-        x = torch.sigmoid(self.output(x))
+        x = self.output(x)
+
         return x
 
 
-LR = 1e-2
-N_EPOCHS =100
-EMBEDDING_DIM = 2
+
+embedding_dim = word2vec_model.vector_size
+hidden_dim = 50
+num_classes = 3
+epochs = 50
+lr = 0.001
 
 
-model = MLP()
-optimizer = torch.optim.Adam(model.parameters(), lr=LR)
-criterion = nn.MSELoss()
+model = MLP(embedding_dim, hidden_dim, num_classes)
+model.to(device)
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.AdamW(model.parameters(), lr=lr)
 
-for epoch in range(N_EPOCHS):  # runs for 100 epochs
+
+#------------------------------------------------------------------------------------
+#
+# Train model
+#
+#------------------------------------------------------------------------------------
+
+for epoch in range(epochs):
     model.train()
-    optimizer.zero_grad()
+    running_loss = 0.0
 
-    outputs = model(X_train).reshape(-1)
-    loss = criterion(outputs, y_train)
+    for batch_data in train_dataloader:
+        inputs, labels = batch_data
+        inputs = inputs.to(device)
+        labels = labels.to(device)
 
-    loss.backward()
-    optimizer.step()
+        optimizer.zero_grad()
+
+        outputs = model(inputs)
+
+        loss = criterion(outputs, labels)
+        loss.backward()
+
+        optimizer.step()
+        running_loss += loss.item()
+
+    # Print the average loss for the epoch
+    epoch_loss = running_loss / len(train_dataloader)
+    print(f"Epoch [{epoch + 1}/{epochs}], Loss: {epoch_loss:.4f}")
+
+#------------------------------------------------------------------------------------
+#
+# Evaluate model
+#
+#------------------------------------------------------------------------------------
 
     model.eval()
+    correct = 0
+    total = 0
+
     with torch.no_grad():
-        predictions = model(X_test).reshape(-1)
-        val_loss = criterion(predictions, y_test)
+        for batch_data in test_dataloader:
+            inputs, labels = batch_data
+            inputs = inputs.to(device)
+            labels = labels.to(device)
 
-    print(f'Epoch [{epoch + 1}/{N_EPOCHS}], Loss: {loss.item():.4f}, Val Loss: {val_loss.item():.4f}')
+            outputs = model(inputs)
+            _, predicted = torch.max(outputs.data, 1)
 
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
 
-model.eval()
-with torch.no_grad():
-    y_pred = model(X_test).reshape(-1)
-    y_pred_classes = (y_pred > 0.5).float()
-    accuracy = (y_pred_classes == y_test).float().mean()
-    print(f'Accuracy: {accuracy.item():.4f}')
-
-
-'''
-words = []
-for text in corpus:
-    for word in text.split(' '):
-        words.append(word)
-words = set(words)
-
-word2int = {}
-
-for i, word in enumerate(words):
-    word2int[word] = i
-
-sentences = []
-for sentence in corpus:
-    sentences.append(sentence.split())
-print(sentences)
-
-
-def get_data(sentences, WINDOW_SIZE):
-    data = []
-
-    for sentence in sentences:
-        for idx, word in enumerate(sentence):
-            for neighbor in sentence[max(idx - WINDOW_SIZE, 0): min(idx + WINDOW_SIZE, len(sentence)) + 1]:
-                if neighbor != word:
-                    data.append([word, neighbor])
-    return data
-
-
-data2 = get_data(sentences, WINDOW_SIZE=2)
-data3 = get_data(sentences, WINDOW_SIZE=3)
-
-
-df = pd.DataFrame(data2, columns = ['input', 'label'])
-
-
-ONE_HOT_DIM = len(words)
-def to_one_hot_encoding(data_point_index):
-    one_hot_encoding = np.zeros(ONE_HOT_DIM)
-    one_hot_encoding[data_point_index] = 1
-    return one_hot_encoding
-
-X = []
-Y = []
-for x, y in zip(df['input'], df['label']):
-    X.append(to_one_hot_encoding(word2int[ x ]))
-    Y.append(to_one_hot_encoding(word2int[ y ]))
-X_train = np.asarray(X)
-Y_train = np.asarray(Y)
-
-
-LR = 1e-2
-N_EPOCHS =2000
-PRINT_LOSS_EVERY = 1000
-EMBEDDING_DIM = 2
-class MLP(nn.Module):
-    def __init__(self, hidden_dim):
-        super(MLP, self).__init__()
-        self.linear1 = nn.Linear(12, hidden_dim)
-        self.linear2 = nn.Linear(hidden_dim, 12)
-        self.act1 = torch.nn.Softmax(dim=1)
-    def forward(self, x):
-        out_em = self.linear1(x)
-        output = self.linear2(out_em)
-        output = self.act1(output)
-        return out_em, output
-
-
-p = torch.Tensor(X_train)
-p.requires_grad = True
-t = torch.Tensor(Y_train)
-
-
-model = MLP(EMBEDDING_DIM)
-optimizer = torch.optim.Adam(model.parameters(), lr=LR)
-criterion = nn.MSELoss()
-
-for epoch in range(N_EPOCHS):
-    optimizer.zero_grad()
-    _, t_pred = model(p)
-    loss = criterion(t, t_pred)
-    loss.backward()
-    optimizer.step()
-    if epoch % PRINT_LOSS_EVERY == 0:
-        print("Epoch {} | Loss {:.5f}".format(epoch, loss.item()))
-
-vectors = model.linear1._parameters['weight'].cpu().detach().numpy().transpose()
-print(vectors)
-
-'''
+    # Print the accuracy for the testing set
+    accuracy = correct / total
+    print(f"Testing Accuracy: {accuracy:.4f}")
