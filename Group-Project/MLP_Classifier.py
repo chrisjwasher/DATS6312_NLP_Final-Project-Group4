@@ -11,7 +11,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler,SequentialSampler
-import torch.nn.functional as F
 
 from torchtext.data.utils import get_tokenizer
 
@@ -67,7 +66,7 @@ def read_json_folder(folder_path):
     return df, json_data_list
 
 
-df, json_data_list = read_json_folder('data/jsons')
+df, json_data_list = read_json_folder('../data/jsons')
 df['full_content'] = df['title'] + ' ' + df['content']
 df = df.drop(['topic', 'source', 'url', 'date', 'authors','title', 'content',
               'content_original', 'source_url', 'bias_text','ID'], axis=1)
@@ -137,51 +136,41 @@ test_dataloader = DataLoader(test_data, batch_size=batch_size, shuffle=True)
 
 #------------------------------------------------------------------------------------
 #
-# Build CNN model
+# Build MLP model
 #
 #------------------------------------------------------------------------------------
 
-class CNN(nn.Module):
-    def __init__(self, embedding_dim, num_filters, filter_sizes, num_classes, dropout):
-        super(CNN, self).__init__()
+class MLP(nn.Module):
+    def __init__(self, embedding_dim, hidden_dim, num_classes):
+        super(MLP, self).__init__()
         self.embedding_dim = embedding_dim
-        self.num_filters = num_filters
-        self.filter_sizes = filter_sizes
+        self.hidden_dim = hidden_dim
         self.num_classes = num_classes
-        self.dropout = dropout
 
-        self.convs = nn.ModuleList([
-            nn.Conv2d(1, num_filters,(fsz,embedding_dim)) for fsz in filter_sizes
-        ])
-        self.fc = nn.Linear(len(filter_sizes) * num_filters, num_classes)
-
+        self.layer1 = nn.Linear(embedding_dim, hidden_dim)
+        self.layer2 = nn.Linear(hidden_dim, hidden_dim)
+        self.output = nn.Linear(hidden_dim, num_classes)
 
     def forward(self, x):
+        # Average the word embeddings to get a document representation
+        x = torch.mean(x, dim=1)
 
-        x = x.unsqueeze(1)
-
-        x = [F.relu(conv(x)).squeeze(3) for conv in self.convs]
-        x = [F.max_pool1d(i, i.size(2)).squeeze(2) for i in x]
-
-        x = torch.cat(x, 1)
-        x = F.dropout(x, p=self.dropout, training=self.training)
-
-        x = self.fc(x)
+        x = torch.relu(self.layer1(x))
+        x = torch.relu(self.layer2(x))
+        x = self.output(x)
 
         return x
 
 
 
 embedding_dim = word2vec_model.vector_size
-num_filters = 100
-filter_sizes = [3, 4, 5]
+hidden_dim = 50
 num_classes = 3
-dropout = 0.5
 epochs = 50
 lr = 0.001
 
 
-model = CNN(embedding_dim, num_filters, filter_sizes, num_classes, dropout)
+model = MLP(embedding_dim, hidden_dim, num_classes)
 model.to(device)
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.AdamW(model.parameters(), lr=lr)

@@ -11,6 +11,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler,SequentialSampler
+import torch.nn.functional as F
 
 from torchtext.data.utils import get_tokenizer
 
@@ -65,8 +66,8 @@ def read_json_folder(folder_path):
 
     return df, json_data_list
 
-
-df, json_data_list = read_json_folder('data/jsons')
+print("Reading data...")
+df, json_data_list = read_json_folder('../data/jsons')
 df['full_content'] = df['title'] + ' ' + df['content']
 df = df.drop(['topic', 'source', 'url', 'date', 'authors','title', 'content',
               'content_original', 'source_url', 'bias_text','ID'], axis=1)
@@ -125,9 +126,10 @@ word2vec_model = api.load("word2vec-google-news-300")
 
 text_column = 'full_content'
 label_column = 'bias'
-max_doc_length = 300
+max_doc_length = 500
 batch_size = 32
 
+print('Loading and tokenizing data...')
 dataset = TextDataset(df, text_column, label_column, max_doc_length, tokenizer, word2vec_model)
 train_data, test_data = train_test_split(dataset, test_size=0.2, random_state=42)
 
@@ -136,41 +138,51 @@ test_dataloader = DataLoader(test_data, batch_size=batch_size, shuffle=True)
 
 #------------------------------------------------------------------------------------
 #
-# Build MLP model
+# Build CNN model
 #
 #------------------------------------------------------------------------------------
 
-class MLP(nn.Module):
-    def __init__(self, embedding_dim, hidden_dim, num_classes):
-        super(MLP, self).__init__()
+class CNN(nn.Module):
+    def __init__(self, embedding_dim, num_filters, filter_sizes, num_classes, dropout):
+        super(CNN, self).__init__()
         self.embedding_dim = embedding_dim
-        self.hidden_dim = hidden_dim
+        self.num_filters = num_filters
+        self.filter_sizes = filter_sizes
         self.num_classes = num_classes
+        self.dropout = dropout
 
-        self.layer1 = nn.Linear(embedding_dim, hidden_dim)
-        self.layer2 = nn.Linear(hidden_dim, hidden_dim)
-        self.output = nn.Linear(hidden_dim, num_classes)
+        self.convs = nn.ModuleList([
+            nn.Conv2d(1, num_filters,(fsz,embedding_dim)) for fsz in filter_sizes
+        ])
+        self.fc = nn.Linear(len(filter_sizes) * num_filters, num_classes)
+
 
     def forward(self, x):
-        # Average the word embeddings to get a document representation
-        x = torch.mean(x, dim=1)
 
-        x = torch.relu(self.layer1(x))
-        x = torch.relu(self.layer2(x))
-        x = self.output(x)
+        x = x.unsqueeze(1)
+
+        x = [F.relu(conv(x)).squeeze(3) for conv in self.convs]
+        x = [F.max_pool1d(i, i.size(2)).squeeze(2) for i in x]
+
+        x = torch.cat(x, 1)
+        x = F.dropout(x, p=self.dropout, training=self.training)
+
+        x = self.fc(x)
 
         return x
 
 
 
 embedding_dim = word2vec_model.vector_size
-hidden_dim = 50
+num_filters = 100
+filter_sizes = [3, 4, 5]
 num_classes = 3
+dropout = 0.5
 epochs = 50
 lr = 0.001
 
-
-model = MLP(embedding_dim, hidden_dim, num_classes)
+print("Building model...")
+model = CNN(embedding_dim, num_filters, filter_sizes, num_classes, dropout)
 model.to(device)
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.AdamW(model.parameters(), lr=lr)
@@ -182,6 +194,7 @@ optimizer = optim.AdamW(model.parameters(), lr=lr)
 #
 #------------------------------------------------------------------------------------
 
+print("Training model...")
 for epoch in range(epochs):
     model.train()
     running_loss = 0.0

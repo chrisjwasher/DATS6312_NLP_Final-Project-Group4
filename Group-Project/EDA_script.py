@@ -60,7 +60,7 @@ def read_json_folder(folder_path):
     return df, json_data_list
 
 
-df, json_data_list = read_json_folder('data/jsons')
+df, json_data_list = read_json_folder('../data/jsons')
 
 pd.options.display.max_columns = None
 print(df.head())
