@@ -9,7 +9,7 @@
     * **model.pkl:** Saved, trained RoBERTa model. 
 * **Final-Group-Presentation:**
     * **app.py:**  Streamlit application script for an interactive demonstration of the bias detection model.
-    * **supporting_images/ **: Images used within the presentation app.
+    * ** .png **: Images used within the presentation app.
     * **model.pkl:** RoBERTa model utilized in the app.
 * **Final-Group-Project-Report.pdf:**  Comprehensive project report outlining methodology, results, and conclusions.
 
