@@ -20,7 +20,7 @@ import re
 #              Load Saved Models
 # ******************************************
 # Specify the file path for the saved model
-file_path = '/home/ubuntu/hopgropter/Group Project/App project/model.pth'
+file_path = './model.pth'
 
 # Load the model
 model_RoBERTA = RobertaForSequenceClassification.from_pretrained("roberta-base", num_labels=3)
