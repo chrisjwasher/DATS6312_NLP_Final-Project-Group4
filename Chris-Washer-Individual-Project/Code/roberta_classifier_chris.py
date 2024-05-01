@@ -2,20 +2,19 @@ import json
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import pickle5 as pickle
+
 
 
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import TensorDataset, DataLoader, RandomSampler,SequentialSampler
+from torch.utils.data import TensorDataset, DataLoader, RandomSampler,SequentialSampler, Dataset
 import torch.nn.functional as F
 from transformers import RobertaTokenizer, RobertaModel
 
 from torchtext.data.utils import get_tokenizer
 
-from datasets import Dataset, load_dataset
 
 import nltk
 import os
@@ -225,7 +224,8 @@ model.eval()
 test_true_labels = []
 test_predicted_labels = []
 test_loss = 0.0
-test_accuracy = 0.0
+test_correct = 0
+test_total = 0
 with torch.no_grad():
     for batch in test_dataloader:
         input_ids = batch['input_ids'].to(device)
@@ -236,23 +236,18 @@ with torch.no_grad():
         loss = criterion(outputs, labels)
 
         test_loss += loss.item()
+
+        _, predicted = torch.max(outputs, 1)
+        test_correct += (predicted == labels).sum().item()
+        test_total += labels.size(0)
+
         test_true_labels.extend(labels.cpu().numpy())
         test_predicted_labels.extend(predicted.cpu().numpy())
 
 
-        _, predicted = torch.max(outputs, 1)
-        test_accuracy += (predicted == labels).sum().item()
 
-test_kappa = cohen_kappa_score(test_true_labels, test_predicted_labels)
-test_f1 = f1_score(test_true_labels, test_predicted_labels, average='weighted')
-test_confusion_matrix = confusion_matrix(test_true_labels, test_predicted_labels)
-
-
-print(f"Test Kappa: {test_kappa:.4f}")
-print(f"Test F1 (weighted): {test_f1:.4f}")
-
+test_accuracy = test_correct / test_total
 test_loss /= len(test_dataloader)
-test_accuracy /= len(test_data)
 
 print(f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.4f}")
 
@@ -276,14 +271,4 @@ plt.xlabel('Predicted Labels')
 plt.ylabel('True Labels')
 plt.show()
 
-#model_path = './roberta_classifier_model'
-#torch.save(model.state_dict(), model_path)
-
-
-
-
-save_directory = '/home/ubuntu/cwasher/NLP/Project/Group-Project'
-file_path = os.path.join(save_directory, "chris_RoBERTA.pkl")
-with open(file_path, 'wb') as file:
-    pickle.dump(model, file)
 
