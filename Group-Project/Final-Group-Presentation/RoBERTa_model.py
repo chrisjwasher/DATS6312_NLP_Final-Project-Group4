@@ -309,6 +309,26 @@ plt.show()
 # with open(file_path, 'wb') as file:
 #   pickle.dump(model, file)
 
+#%%
+# Define a hypothetical label mapping
+label_mapping = {0: "Class_A", 1: "Class_B", 2: "Class_C"}
+
+
+# Evaluation loop
+model.eval()
+with torch.no_grad():
+    for batch in val_dataloader:
+        batch_encoded = {k: v.to(device) for k, v in batch.items() if k != 'labels'}
+        labels = batch['labels'].to(device)
+
+        outputs = model(**batch_encoded, labels=labels)
+        logits = outputs.logits
+        predictions = torch.argmax(logits, dim=-1)
+
+        # Convert predictions to class labels based on your label mapping
+        predicted_labels = [label_mapping[p.item()] for p in predictions]
+
+        print("Predicted labels:", predicted_labels)
 
 
 
