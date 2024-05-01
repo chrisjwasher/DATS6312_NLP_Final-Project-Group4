@@ -11,16 +11,23 @@ import torch
 import os
 from sklearn.metrics import accuracy_score, f1_score
 from transformers import PegasusForConditionalGeneration, PegasusTokenizer
-from transformers import RobertaTokenizer
+from transformers import RobertaForSequenceClassification, RobertaTokenizer
+
 import re
 
 
 # ******************************************
 #              Load Saved Models
 # ******************************************
-# Load the saved RoBERTa model
-with open("../model.pkl", 'rb') as file:
-    model_RoBERTA = pickle.load(file)
+# Specify the file path for the saved model
+file_path = '/home/ubuntu/hopgropter/Group Project/App project/model.pth'
+
+# Load the model
+model_RoBERTA = RobertaForSequenceClassification.from_pretrained("roberta-base", num_labels=3)
+model_RoBERTA.load_state_dict(torch.load(file_path))
+model_RoBERTA.eval()
+
+tokenizer_RoBERTA = RobertaTokenizer.from_pretrained('roberta-base')
 
 
 # ******************************************
@@ -29,10 +36,6 @@ with open("../model.pkl", 'rb') as file:
 # Create a tokenizer and model
 tokenizer_pegasus = PegasusTokenizer.from_pretrained('google/pegasus-multi_news')
 model_pegasus = PegasusForConditionalGeneration.from_pretrained('google/pegasus-multi_news')
-
-# Load the tokenizer and model
-tokenizer_RoBERTA = RobertaTokenizer.from_pretrained("roberta-base")
-model_RoBERTA = RobertaForSequenceClassification.from_pretrained("model.pkl")
 
 
 # Function to generate summary using Pegasus
@@ -51,17 +54,17 @@ def summary_pegasus(content):
 # ******************************************
 # Define label mapping
 label_map_RoBERTA = {0: "Left", 1: "Center", 2: "Right"}
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# Move the model to the selected device
+model_RoBERTA.to(device)
 
 def predict(text, threshold=0.5):
-    # Preprocess the input text
-    preprocessed_text = preprocess(text)
-
     # Tokenize the input text
-    inputs = tokenizer_RoBERTA(preprocessed_text, padding=True, truncation=True, return_tensors="pt")
+    inputs = tokenizer_RoBERTA(text, padding=True, truncation=True, return_tensors="pt")
 
     # Move the input tensors to the same device as the model
-    inputs = {key: value.to(model_RoBERTA.device) for key, value in inputs.items()}
+    inputs = {key: value.to(device) for key, value in inputs.items()}  # Assuming you've defined `device`
 
     # Forward pass through the model
     with torch.no_grad():
@@ -79,7 +82,7 @@ def predict(text, threshold=0.5):
     # Check if the predicted probability is above the threshold
     if predicted_prob.item() >= threshold:
         # Map the index to the actual label
-        predicted_label = model_RoBERTA.config.id2label[predicted_class_idx.item()]
+        predicted_label = predicted_class_idx.item()  # No need to use `model_RoBERTA.config.id2label`
 
         # Get the corresponding label from the dictionary
         if predicted_label in label_map_RoBERTA:
@@ -200,7 +203,7 @@ def main():
 
     initialize_session_state()
 
-    st.image('new banner.png')
+    st.image('banner 19.23.09.png')
 
     st.title("Search New's Articles and Get Informed")
     st.subheader("You will get most relevant and new articles")
@@ -248,7 +251,7 @@ def main():
                    f'q={user_query}&'
                    'language=en&'
                    'sortBy=relevancy&'
-                   'pageSize=5&'
+                   'pageSize=10&'
                    f'apiKey=a91f440fdad74f36a8695761264b3e4c')
 
             # Make a GET request to the News API

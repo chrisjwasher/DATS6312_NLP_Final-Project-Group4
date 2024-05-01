@@ -299,36 +299,21 @@ plt.show()
 
 
 # Specify the directory where you want to save the file
-# save_directory = "/home/ubuntu/hopgropter/Group Project/1 Project App"
+save_directory = "/home/ubuntu/hopgropter/Group Project/App project"
 
 # Ensure that the directory exists, create it if it doesn't
 # os.makedirs(save_directory, exist_ok=True)
 
 # Save the final model after training completion
-# file_path = os.path.join(save_directory, "91percent_model_RoBERTA.pkl")
-# with open(file_path, 'wb') as file:
-#   pickle.dump(model, file)
+file_path = os.path.join(save_directory, "model.pth")
+torch.save(model.state_dict(), file_path)
+
+
 
 #%%
-# Define a hypothetical label mapping
-label_mapping = {0: "Class_A", 1: "Class_B", 2: "Class_C"}
-
-
-# Evaluation loop
-model.eval()
-with torch.no_grad():
-    for batch in val_dataloader:
-        batch_encoded = {k: v.to(device) for k, v in batch.items() if k != 'labels'}
-        labels = batch['labels'].to(device)
-
-        outputs = model(**batch_encoded, labels=labels)
-        logits = outputs.logits
-        predictions = torch.argmax(logits, dim=-1)
-
-        # Convert predictions to class labels based on your label mapping
-        predicted_labels = [label_mapping[p.item()] for p in predictions]
-
-        print("Predicted labels:", predicted_labels)
-
+# Save the final model after training completion
+file_path = os.path.join(save_directory, "model2345.pkl")
+with open(file_path, 'wb') as file:
+    pickle.dump(model, file)
 
 
