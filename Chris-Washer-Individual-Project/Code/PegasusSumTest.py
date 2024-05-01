@@ -1,0 +1,16 @@
+from transformers import PegasusTokenizer, PegasusForConditionalGeneration, AutoTokenizer
+import torch
+
+# Set the device to GPU if available
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# Load the fine-tuned model and tokenizer
+model_dir = "./fine_tuned_model"
+model = PegasusForConditionalGeneration.from_pretrained("google/pegasus-multi_news").to(device)
+tokenizer = AutoTokenizer.from_pretrained("google/pegasus-multi_news")
+
+input_text = "Mr. Obama should draw the circle of inclusion as large as possible \u2014 up to the eight million or so who might have qualified under an ambitious bipartisan bill that passed the Senate last year . But Mr. Obama , who wants to bolster his actions against legal attack , seems unlikely to include parents whose children lack citizenship or green cards . Tens of thousands of families will surely be disheartened by this exclusion and other politically motivated shortcomings \u2014 the plan is expected to bar recipients from health coverage under the Affordable Care Act , for example . Some immigrant advocacy groups have already denounced the plan as too cautious and too small .\nThe backlash on the right , too , is well underway , with Republican lawmakers condemning what they see as a tyrannical usurpation of congressional authority by \u201c Emperor \u201d Obama . They fail to mention , though , that new priorities will put the vast deportation machinery to better use against serious criminals , terrorists and security threats , which should be the goal of any sane law-enforcement regime . Nor did they ever complain when Mr. Obama aggressively used his executive authority to ramp up deportations to an unprecedented peak of 400,000 a year .\nIt has been the immigration system \u2019 s retreat from sanity , of course , that made Mr. Obama \u2019 s new plan necessary . Years were wasted , and countless families broken , while Mr. Obama clung to a futile strategy of luring Republicans toward a legislative deal . He has been his own worst enemy \u2014 over the years he stressed his executive impotence , telling advocates that he could not change the system on his own . This may have suited his legislative strategy , but it was not true .\nIt \u2019 s good that Mr. Obama has finally turned the page . He plans to lead a rally in Las Vegas on Friday at a high school where he outlined his immigration agenda in January 2013 . Legislative solutions are a dim hope for some future day when the Republican fever breaks . But until then , here we are .\nThis initiative can not be allowed to fail for lack of support from those who accept the need for progress on immigration , however incremental . Courageous immigrant advocates , led by day laborers , Dreamers and others , have pressed a reluctant president to acknowledge the urgency of their cause \u2014 and to do something about it . The only proper motion now is forward ."
+inputs = tokenizer(input_text, return_tensors="pt", max_length=1024, truncation=True).to(device)
+summary_ids = model.generate(inputs["input_ids"])
+summary = tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+print(summary)
