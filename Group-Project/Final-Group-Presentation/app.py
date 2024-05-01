@@ -2,14 +2,11 @@
 #               Load Libraries
 # ******************************************
 import streamlit as st
+import streamlit.components.v1 as components
 import requests
-import pickle
 from datetime import datetime
 from newspaper import Article
-import validators
 import torch
-import os
-from sklearn.metrics import accuracy_score, f1_score
 from transformers import PegasusForConditionalGeneration, PegasusTokenizer
 from transformers import RobertaForSequenceClassification, RobertaTokenizer
 
@@ -82,7 +79,7 @@ def predict(text, threshold=0.5):
     # Check if the predicted probability is above the threshold
     if predicted_prob.item() >= threshold:
         # Map the index to the actual label
-        predicted_label = predicted_class_idx.item()  # No need to use `model_RoBERTA.config.id2label`
+        predicted_label = predicted_class_idx.item()
 
         # Get the corresponding label from the dictionary
         if predicted_label in label_map_RoBERTA:
@@ -126,6 +123,21 @@ naive_metrics = {
     "F1-score (weighted)": round(0.5040879849427269, 3),
 }
 
+MLP_metrics = {
+    "Accuracy": 0.584,
+    "F1-score (weighted)": 0.57,
+}
+
+CNN_metrics = {
+    "Accuracy": 0.73,
+    "F1-score (weighted)": 0.73,
+}
+
+LSTM_metrics = {
+    "Accuracy": 0.73,
+    "F1-score (weighted)": 0.73,
+}
+
 model_metrics = {
     "Accuracy": round(0.9022896698615549, 3),
     "F1-score (weighted)": round(0.9023137006164763, 3)
@@ -145,9 +157,9 @@ def is_url(url):
 #         Main Streamlit application
 # ******************************************
 def main():
-    st.title("Our path")
-    st.write("We used pre-labeled data to train RoBERTA transformer model from .... containing 37554 Articles from "
-             "different News sources. Our research was in conducting a classification task  ")
+    st.title("NLP Project - Political Bias Detection ")
+    components.iframe("https://docs.google.com/presentation/d/e/2PACX-1vRuDIm9jOMllon851G-aXAnmgSlBFtUXLoFJq8t4koSmlvdCNjbOWkn5jreUxmGWx9ZJJNenOOpKC1r/embed?start=false&loop=false&delayms=3000",
+                      height=509, width=809)
 
     st.title("Classical Model Evaluation")
     col1, col2, col3 = st.columns([1, 0.1, 1])
@@ -164,7 +176,7 @@ def main():
             unsafe_allow_html=True)
 
     with col2:
-        st.markdown('<div style="height: 90vh; border-left: 1px solid #ccc;"></div>', unsafe_allow_html=True)
+        st.markdown('<div style="height: 70vh; border-left: 1px solid #ccc;"></div>', unsafe_allow_html=True)
 
     with col3:
         st.write("*************************")
@@ -174,6 +186,71 @@ def main():
         st.write("*************************")
         st.image("confusion_matrix_logistic.png")
 
+    st.text(" ")
+    st.text(" ")
+    st.text(" ")
+    st.text(" ")
+
+    # **************************************************************
+    # **************************************************************
+    st.title("Neural Network Model Evaluation")
+    col1_n, col2_n, col3_n = st.columns([1, 0.1, 1])
+
+    with col1_n:
+        st.write("*************************")
+        st.subheader("MLP")
+        for metric, value in MLP_metrics.items():
+            st.write(f"{metric}: {value}")
+        st.write("*************************")
+        st.image("MLP_confusion_matrix.png")
+        st.markdown(
+            "<small style='color: #6e6e6e; font-size: 12px;'>**Note: 0 - Left; 1 - Center; 2 - Right.</small>",
+            unsafe_allow_html=True)
+
+    with col2_n:
+        st.markdown('<div style="height: 70vh; border-left: 1px solid #ccc;"></div>', unsafe_allow_html=True)
+
+    with col3_n:
+        st.write("*************************")
+        st.subheader("CNN")
+        for metric, value in CNN_metrics.items():
+            st.write(f"{metric}: {value}")
+        st.write("*************************")
+        st.image("CNN_confusion_matrix.png")
+
+    st.text(" ")
+    st.text(" ")
+    st.text(" ")
+    st.text(" ")
+
+    # **************************************************************
+    # **************************************************************
+
+    st.title("LSTM & RoBERTa Model Evaluation")
+    col1_m, col2_m, col3_m = st.columns([1, 0.1, 1])
+
+    with col1_m:
+        st.write("*************************")
+        st.subheader("RoBERTa Model")
+        for metric, value in model_metrics.items():
+            st.write(f"{metric}: {value}")
+        st.write("*************************")
+        st.image("confusion_matrix_roberta.png")
+        st.markdown(
+            "<small style='color: #6e6e6e; font-size: 12px;'>**Note: 0 - Left; 1 - Center; 2 - Right.</small>",
+            unsafe_allow_html=True)
+
+    with col2_m:
+        st.markdown('<div style="height: 70vh; border-left: 1px solid #ccc;"></div>', unsafe_allow_html=True)
+
+    with col3_m:
+        st.write("*************************")
+        st.subheader("LSTM")
+        for metric, value in LSTM_metrics.items():
+            st.write(f"{metric}: {value}")
+        st.write("*************************")
+        st.image("CNN_confusion_matrix.png")
+    # **************************************************************
     # **************************************************************
     st.text(" ")
     st.text(" ")
@@ -199,13 +276,13 @@ def main():
     # **************************************************************
 
 
-    st.title("Lets explore it on new Unseen data")
+    st.title("Lets test it out in For Real")
 
     initialize_session_state()
 
     st.image('banner 19.23.09.png')
 
-    st.title("Search New's Articles and Get Informed")
+    st.title("Search New's Articles Or Simple past url from any news source")
     st.subheader("You will get most relevant and new articles")
 
     st.text(" ")
