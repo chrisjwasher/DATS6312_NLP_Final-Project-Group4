@@ -158,9 +158,7 @@ class MLP(nn.Module):
         self.output = nn.Linear(hidden_dim, num_classes)
 
     def forward(self, x):
-        # Average the word embeddings to get a document representation
         x = torch.mean(x, dim=1)
-
         x = torch.relu(self.layer1(x))
         x = torch.relu(self.layer2(x))
         x = self.output(x)
@@ -207,7 +205,7 @@ for epoch in range(epochs):
         optimizer.step()
         running_loss += loss.item()
 
-    # Print the average loss for the epoch
+
     epoch_loss = running_loss / len(train_dataloader)
     print(f"Epoch [{epoch + 1}/{epochs}], Loss: {epoch_loss:.4f}")
 
@@ -233,7 +231,7 @@ for epoch in range(epochs):
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
 
-    # Print the accuracy for the testing set
+
     accuracy = correct / total
     print(f"Testing Accuracy: {accuracy:.4f}")
 
@@ -266,7 +264,7 @@ with torch.no_grad():
         test_true_labels.extend(labels.cpu().numpy())
         test_predicted_labels.extend(predicted.cpu().numpy())
 
-# Calculate the test accuracy
+
 test_accuracy = correct / total
 print(f"Test Accuracy: {test_accuracy:.4f}")
 f1 = f1_score(test_true_labels, test_predicted_labels, average='weighted')
@@ -283,7 +281,7 @@ with open('MLP_metrics.csv', 'w', newline='') as file:
     writer.writerows(metrics_data)
 
 
-# Calculate the confusion matrix
+
 cm = confusion_matrix(test_true_labels, test_predicted_labels)
 
 print("Confusion Matrix:")

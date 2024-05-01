@@ -162,12 +162,9 @@ class CNN(nn.Module):
 
 
     def forward(self, x):
-
         x = x.unsqueeze(1)
-
         x = [F.relu(conv(x)).squeeze(3) for conv in self.convs]
         x = [F.max_pool1d(i, i.size(2)).squeeze(2) for i in x]
-
         x = torch.cat(x, 1)
         x = F.dropout(x, p=self.dropout, training=self.training)
 
@@ -207,18 +204,13 @@ for epoch in range(epochs):
         inputs, labels = batch_data
         inputs = inputs.to(device)
         labels = labels.to(device)
-
         optimizer.zero_grad()
-
         outputs = model(inputs)
-
         loss = criterion(outputs, labels)
         loss.backward()
-
         optimizer.step()
         running_loss += loss.item()
 
-    # Print the average loss for the epoch
     epoch_loss = running_loss / len(train_dataloader)
     print(f"Epoch [{epoch + 1}/{epochs}], Loss: {epoch_loss:.4f}")
 
