@@ -4,7 +4,10 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+import csv
 
+from gensim.parsing.preprocessing import remove_stopwords
+import gensim.downloader as api
 
 import torch
 import torch.nn as nn
@@ -64,7 +67,7 @@ def read_json_folder(folder_path):
     return df, json_data_list
 
 
-df, json_data_list = read_json_folder('../data/jsons')
+df, json_data_list = read_json_folder('data/jsons')
 df['full_content'] = df['title'] + ' ' + df['content']
 df = df.drop(['topic', 'source', 'url', 'date', 'authors','title', 'content',
               'content_original', 'source_url', 'bias_text','ID'], axis=1)
@@ -179,7 +182,7 @@ num_filters = 100
 filter_sizes = [3, 4, 5]
 num_classes = 3
 dropout = 0.5
-epochs = 50
+epochs = 7
 lr = 0.001
 
 print("Building model...")
@@ -269,13 +272,23 @@ with torch.no_grad():
         test_true_labels.extend(labels.cpu().numpy())
         test_predicted_labels.extend(predicted.cpu().numpy())
 
+
 # Calculate the test accuracy
 test_accuracy = correct / total
 print(f"Test Accuracy: {test_accuracy:.4f}")
-
-# Calculate the F1 score
 f1 = f1_score(test_true_labels, test_predicted_labels, average='weighted')
 print(f"F1 Score: {f1:.4f}")
+
+metrics_data = [
+    ['Accuracy', test_accuracy],
+    ['F1 Score', f1]
+]
+
+with open('CNN_metrics.csv', 'w', newline='') as file:
+    writer = csv.writer(file)
+    writer.writerow(['Metric', 'Value'])
+    writer.writerows(metrics_data)
+
 
 # Calculate the confusion matrix
 cm = confusion_matrix(test_true_labels, test_predicted_labels)
@@ -289,4 +302,6 @@ plt.xticks(range(num_classes), range(num_classes))
 plt.yticks(range(num_classes), range(num_classes))
 plt.xlabel('Predicted Labels')
 plt.ylabel('True Labels')
+plt.tight_layout()
+plt.savefig('CNN_confusion_matrix.png')
 plt.show()

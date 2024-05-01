@@ -6,7 +6,7 @@
       <paths name="AWS">
         <serverdata>
           <mappings>
-            <mapping deploy="/home/ubuntu/cwasher/NLP/Project" local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/home/ubuntu/cwasher/NLP/Final-Project" local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>

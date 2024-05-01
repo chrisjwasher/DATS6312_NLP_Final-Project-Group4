@@ -21,8 +21,8 @@ import nltk
 import os
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import cohen_kappa_score, f1_score, confusion_matrix
-#nltk.download('punkt')
-#nltk.download('stopwords')
+nltk.download('punkt')
+nltk.download('stopwords')
 
 #------------------------------------------------------------------------------------
 #
@@ -68,7 +68,7 @@ def read_json_folder(folder_path):
     return df, json_data_list
 
 
-df, json_data_list = read_json_folder('../data/jsons')
+df, json_data_list = read_json_folder('data/jsons')
 df['full_content'] = df['title'] + ' ' + df['content']
 df = df.drop(['topic', 'source', 'url', 'date', 'authors','title', 'content',
               'content_original', 'source_url', 'bias_text','ID'], axis=1)
@@ -172,7 +172,7 @@ class MLP(nn.Module):
 embedding_dim = word2vec_model.vector_size
 hidden_dim = 50
 num_classes = 3
-epochs = 25
+epochs = 10
 lr = 0.001
 
 
