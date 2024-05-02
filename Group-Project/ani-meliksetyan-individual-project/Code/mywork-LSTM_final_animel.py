@@ -9,6 +9,9 @@ import pandas as pd
 import json
 import torch
 import torch.nn as nn
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import confusion_matrix
 from nltk.corpus import stopwords
 from collections import Counter
 import re
@@ -424,11 +427,12 @@ num_unique_classes = len(set(test_labels))  # Get the number of unique classes
 cm = confusion_matrix(test_labels, test_predictions)
 print("Confusion Matrix:")
 plt.figure(figsize=(8, 6))
-plt.imshow(cm, cmap='Blues')
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
+           xticklabels=range(num_unique_classes), yticklabels=range(num_unique_classes),
+           cbar=False)
+
 plt.title('Confusion Matrix')
-plt.colorbar()
-plt.xticks(range(num_unique_classes), range(num_unique_classes))
-plt.yticks(range(num_unique_classes), range(num_unique_classes))
+
 plt.xlabel('Predicted Labels')
 plt.ylabel('True Labels')
 plt.tight_layout()
