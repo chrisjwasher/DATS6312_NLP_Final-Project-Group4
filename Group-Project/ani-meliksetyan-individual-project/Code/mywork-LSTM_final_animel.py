@@ -1,3 +1,5 @@
+## Reference Note: I created this new version of LSTM model with the help of Chat GPT 
+
 import time
 import os
 import csv
