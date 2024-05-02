@@ -31,6 +31,6 @@ We recommend running cells individually during development and experimentation. 
 
 **Saved Model:**
 
-* **model.pkl:**  Represents a pre-trained RoBERTA model that was trained on .JSON data.  This file can be loaded for prediction tasks or to continue fine-tuning.
+* **model.pkl:**  Represents a pre-trained RoBERTA model that was trained on .JSON data.  This file can be loaded for prediction tasks or to continue fine-tuning. Here is the link to access for saved trained model: https://drive.google.com/file/d/1QulyuNsKiIBED0XGjUhsfVq7YiBXf2sf/view?usp=drive_link
 
 
