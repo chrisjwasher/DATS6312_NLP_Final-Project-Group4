@@ -124,12 +124,12 @@ naive_metrics = {
 }
 
 MLP_metrics = {
-    "Accuracy": 0.584,
+    "Accuracy": '58,47%',
     "F1-score (weighted)": 0.57,
 }
 
 CNN_metrics = {
-    "Accuracy": 0.73,
+    "Accuracy": '73%',
     "F1-score (weighted)": 0.73,
 }
 
