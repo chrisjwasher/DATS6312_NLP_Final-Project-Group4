@@ -1,3 +1,5 @@
+###I consulted ChatGPT and used some of the coded provided during classes to address this modeling task
+
 import time
 import os
 import csv
